@@ -8,6 +8,14 @@ on:
     inputs:
       version:
         description: 'Version number'
+      skip_release:
+        description: 'Skip Python package publishing and the GitHub release'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  GHCR_ORG: ${{ github.repository_owner }}
 
 # https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#release
 # GITHUB_SHA = Last commit in the tagged release
@@ -23,7 +31,7 @@ jobs:
           - golang-adk
           - claude-harness
           - codex-harness
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
@@ -52,6 +60,7 @@ jobs:
         DOCKER_BUILD_ARGS: "--push --platform linux/amd64,linux/arm64"
         DOCKER_BUILDER: "docker buildx build"
         DOCKER_REGISTRY: "ghcr.io" # prod for releases, local for dev
+        DOCKER_REPO: "${{ env.GHCR_ORG }}/kagent"
       run: |
         # if workflow_dispatch is used, use the version input
         if [ -n "${{ github.event.inputs.version }}" ]; then
@@ -79,6 +88,8 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
 
     - name: 'Build Helm Chart'
+      env:
+        HELM_REPO: "oci://ghcr.io/${{ env.GHCR_ORG }}"
       run: |
         # if workflow_dispatch is used, use the version input
         if [ -n "${{ github.event.inputs.version }}" ]; then
@@ -88,6 +99,7 @@ jobs:
         fi
         make helm-publish
   release-python-packages:
+    if: ${{ !inputs.skip_release }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -136,6 +148,7 @@ jobs:
         uv publish --token ${{ secrets.PYPI_TOKEN }}
 
   release:
+    if: ${{ !inputs.skip_release }}
     # Only run release after images and helm chart are pushed
     # In the future we can take the chart from the helm action,
     # and build the CLI beforehand.
