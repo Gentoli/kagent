@@ -60,7 +60,6 @@ jobs:
         DOCKER_BUILD_ARGS: "--push --platform linux/amd64,linux/arm64"
         DOCKER_BUILDER: "docker buildx build"
         DOCKER_REGISTRY: "ghcr.io" # prod for releases, local for dev
-        DOCKER_REPO: "${{ env.GHCR_ORG }}/kagent"
       run: |
         # if workflow_dispatch is used, use the version input
         if [ -n "${{ github.event.inputs.version }}" ]; then
@@ -68,7 +67,8 @@ jobs:
         else
           export VERSION=$(echo "$GITHUB_REF" | cut -c12-)
         fi
-        make build-${{ matrix.image }}
+        GHCR_ORG_LC="$(echo "${GHCR_ORG}" | tr '[:upper:]' '[:lower:]')"
+        make build-${{ matrix.image }} DOCKER_REPO="${GHCR_ORG_LC}/kagent"
   push-helm-chart:
     needs:
     - push-images
@@ -88,8 +88,6 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
 
     - name: 'Build Helm Chart'
-      env:
-        HELM_REPO: "oci://ghcr.io/${{ env.GHCR_ORG }}"
       run: |
         # if workflow_dispatch is used, use the version input
         if [ -n "${{ github.event.inputs.version }}" ]; then
@@ -97,7 +95,8 @@ jobs:
         else
           export VERSION=$(echo "$GITHUB_REF" | cut -c12-)
         fi
-        make helm-publish
+        GHCR_ORG_LC="$(echo "${GHCR_ORG}" | tr '[:upper:]' '[:lower:]')"
+        make helm-publish HELM_REPO="oci://ghcr.io/${GHCR_ORG_LC}"
   release-python-packages:
     if: ${{ !inputs.skip_release }}
     runs-on: ubuntu-latest

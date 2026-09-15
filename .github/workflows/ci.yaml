@@ -444,9 +444,10 @@ jobs:
             --cache-to=type=gha,scope=${{ needs.setup.outputs.cache-key }}-${{ matrix.image }},mode=max
             --platform=linux/amd64,linux/arm64
             --push
-          DOCKER_REPO: "${{ github.repository_owner }}/kagent"
           DOCKER_BUILDER: "docker buildx build"
-        run: make build-${{ matrix.image }}
+        run: |
+          GHCR_ORG_LC="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          make build-${{ matrix.image }} DOCKER_REPO="${GHCR_ORG_LC}/kagent"
         working-directory: ./
 
   go-lint:
